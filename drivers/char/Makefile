@@ -53,7 +53,7 @@ obj-$(CONFIG_PCMCIA)		+= pcmcia/
 obj-$(CONFIG_HANGCHECK_TIMER)	+= hangcheck-timer.o
 ifeq ($(CONFIG_ARM64),y)
 obj-y							+= virtdrm.o
-virtdrm-objs					:= virtd
+virtdrm-objs					:= virtd.o
 endif
 obj-$(CONFIG_TCG_TPM)		+= tpm/
 
