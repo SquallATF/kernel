@@ -186,6 +186,11 @@
 		BT,wake_host_irq = <&gpio0 4 GPIO_ACTIVE_HIGH>; /* GPIO0_A4 */
 		status = "okay";
 	};
+
+   hwversion: hwversion{
+       status = "disabled";
+       compatible = "firefly,hwversion";
+  };
 	/* GPIO1_C7 controls both VCC18_MIPI and VCC28_MIPI, also AF28 */
 	vcc_mipi: vcc_mipi {
 		compatible = "regulator-fixed";
@@ -227,6 +232,7 @@
 	status = "okay";
 	i2c-scl-rising-time-ns = <300>;
 	i2c-scl-falling-time-ns = <15>;
+	clock-frequency = <400000>;
 
 	rt5640: rt5640@1c {
 		#sound-dai-cells = <0>;

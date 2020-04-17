@@ -417,6 +417,8 @@ static struct rk_rtc_compat_reg rk817_creg = {
 	.seconds_reg = RK817_SECONDS_REG,
 };
 
+extern bool firefly_hwversion_in_range(const struct device_node *device);
+
 static int rk808_rtc_probe(struct platform_device *pdev)
 {
 	struct rk808 *rk808 = dev_get_drvdata(pdev->dev.parent);
@@ -437,6 +439,9 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 			dev_info(&pdev->dev, "device is disabled\n");
 			return -EINVAL;
 		}
+		if (!firefly_hwversion_in_range(np))
+			return -EINVAL;
+
 		break;
 	default:
 		break;
