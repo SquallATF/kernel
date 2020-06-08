@@ -201,13 +201,6 @@ struct gsl_ts {
 	int irq;
 	int rst;
 	int flag_irq_is_disable;
-
-	/* whether the device is registered, true: registered */
-	bool flag_activated;
-
-	/* whether the device need resume, true: need resume */
-	bool flag_need_resume;
-
 	spinlock_t irq_lock;
 	struct tp_device  tp;
 	struct work_struct download_fw_work;
@@ -1032,13 +1025,10 @@ error_unreg_device:
 	return rc;
 }
 
-static int __maybe_unused gsl_ts_suspend(struct device *dev)
+static int gsl_ts_suspend(struct device *dev)
 {
 	struct gsl_ts *ts = dev_get_drvdata(dev);
 	int i;
-
-	if (!ts->flag_activated)
-		return 0;
 
 #ifdef GSL_MONITOR
 	cancel_delayed_work_sync(&gsl_monitor_work);
@@ -1063,19 +1053,14 @@ static int __maybe_unused gsl_ts_suspend(struct device *dev)
 	report_data(ts, 1, 1, 10, 1);
 	input_sync(ts->input);
 #endif
-	ts->flag_activated = false;
-
 	return 0;
 }
 
-static int __maybe_unused gsl_ts_resume(struct device *dev)
+static int gsl_ts_resume(struct device *dev)
 {
 	struct gsl_ts *ts = dev_get_drvdata(dev);
 	int i;
 	int rc;
-
-	if (ts->flag_activated)
-		return 0;
 
 	gsl3673_shutdown_high();
 	mdelay(5);
@@ -1101,51 +1086,24 @@ static int __maybe_unused gsl_ts_resume(struct device *dev)
 #endif
 	ts_irq_enable(ts);
 
-	ts->flag_activated = true;
-
 	return 0;
-}
-
-static int __maybe_unused gsl_ts_pm_suspend(struct device *dev)
-{
-	struct gsl_ts *ts = dev_get_drvdata(dev);
-	int ret;
-
-	if (!ts->flag_activated)
-		return 0;
-
-	ret = gsl_ts_suspend(dev);
-	if (ret < 0)
-		return ret;
-
-	ts->flag_need_resume = true;
-	return 0;
-}
-
-static int __maybe_unused gsl_ts_pm_resume(struct device *dev)
-{
-	struct gsl_ts *ts = dev_get_drvdata(dev);
-
-	if (!ts->flag_need_resume)
-		return 0;
-
-	ts->flag_need_resume = false;
-	return gsl_ts_resume(dev);
 }
 
 static int gsl_ts_early_suspend(struct tp_device *tp_d)
-
 {
 	struct gsl_ts *ts = container_of(tp_d, struct gsl_ts, tp);
 
-	return gsl_ts_suspend(&ts->client->dev);
+	gsl_ts_suspend(&ts->client->dev);
+	return 0;
 }
 
 static int gsl_ts_late_resume(struct tp_device *tp_d)
 {
 	struct gsl_ts *ts = container_of(tp_d, struct gsl_ts, tp);
+	int rc;
 
-	return gsl_ts_resume(&ts->client->dev);
+	rc = gsl_ts_resume(&ts->client->dev);
+	return rc;
 }
 
 static void gsl_download_fw_work(struct work_struct *work)
@@ -1176,6 +1134,8 @@ static int  gsl_ts_probe(struct i2c_client *client,
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
+	ts->tp.tp_resume = gsl_ts_late_resume;
+	ts->tp.tp_suspend = gsl_ts_early_suspend;
 	tp_register_fb(&ts->tp);
 	ts->client = client;
 	i2c_set_clientdata(client, ts);
@@ -1214,8 +1174,6 @@ static int  gsl_ts_probe(struct i2c_client *client,
 	proc_create(GSL_CONFIG_PROC_FILE, 0644, NULL, &gsl_seq_fops);
 	gsl_proc_flag = 0;
 #endif
-	ts->flag_activated = true;
-
 	return 0;
 error_init_chip_fail:
 	cancel_work_sync(&ts->download_fw_work);
@@ -1239,10 +1197,6 @@ static int gsl_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct dev_pm_ops gsl_ts_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(gsl_ts_pm_suspend, gsl_ts_pm_resume)
-};
-
 static const struct of_device_id gsl_ts_ids[] = {
 	{.compatible = "GSL,GSL3673"},
 	{ }
@@ -1260,7 +1214,6 @@ static struct i2c_driver gsl_ts_driver = {
 		.name = GSL3673_I2C_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(gsl_ts_ids),
-		.pm = &gsl_ts_pm,
 	},
 	.probe		= gsl_ts_probe,
 	.remove		= gsl_ts_remove,

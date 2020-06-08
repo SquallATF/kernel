@@ -566,9 +566,7 @@ static int hym8563_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	hym8563->client = client;
-	hym8563->valid = true;
 	i2c_set_clientdata(client, hym8563);
-
 	device_set_wakeup_capable(&client->dev, true);
 
 	ret = hym8563_init_device(client);
@@ -577,7 +575,7 @@ static int hym8563_probe(struct i2c_client *client,
 		return ret;
 	}
 	irq_gpio = of_get_named_gpio_flags(np, "rtc-irq-gpio", 0,(enum of_gpio_flags *)&irq_flags);
-	client->irq = gpio_to_irq(irq_gpio);
+	client->irq = gpio_to_irq(irq_gpio); 
 	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, hym8563_irq,
@@ -613,19 +611,27 @@ static int hym8563_probe(struct i2c_client *client,
 	hym8563->valid = !(ret & HYM8563_SEC_VL);
 	dev_dbg(&client->dev, "rtc information is %s\n",
 		hym8563->valid ? "valid" : "invalid");
-
+		
+#if 1
+	hym8563_rtc_read_time(&client->dev, &tm_read);
+	if (((tm_read.tm_year < 70) | (tm_read.tm_year > 137)) | (tm_read.tm_mon == -1) | (rtc_valid_tm(&tm_read) != 0)) //if the hym8563 haven't initialized
+	{
+		printk("zjy: rtc 22 %d %d %d %d\r\n", tm_read.tm_year, tm_read.tm_year, tm_read.tm_mon, rtc_valid_tm(&tm_read));
+		hym8563_rtc_set_time(&client->dev, &tm);	//initialize the hym8563
+	}
+#endif		
+		
 	hym8563->rtc = devm_rtc_device_register(&client->dev, client->name,
 						&hym8563_rtc_ops, THIS_MODULE);
+
 	if (IS_ERR(hym8563->rtc))
 		return PTR_ERR(hym8563->rtc);
 
 	/* the hym8563 alarm only supports a minute accuracy */
 	hym8563->rtc->uie_unsupported = 1;
-
 #ifdef CONFIG_COMMON_CLK
 	hym8563_clkout_register_clk(hym8563);
 #endif
-
 	return 0;
 }
 

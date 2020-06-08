@@ -138,8 +138,8 @@
         status = "okay";
     };
 
-	es8323_sound: es8323-sound {
-		status = "disabled";
+	es8323_sound_new: es8323-sound-new {
+		status = "okay";
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,name = "rockchip,es8323-codec";
@@ -157,7 +157,7 @@
 			system-clock-frequency = <11289600>;
 		};
 		simple-audio-card,codec {
-			sound-dai = <&es8323>;
+			sound-dai = <&es8323_new>;
 			system-clock-frequency = <11289600>;
 		};
 	};
@@ -286,21 +286,6 @@
     /delete-node/ ov13850@36;
     /delete-node/ ov13850@46;
 
-    es8323: es8323@10 {
-        compatible = "everest,es8323";
-        status = "okay";
-        reg = <0x11>;
-        reg_new = <0x11>;
-        spk-ctl-gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
-        clock-names = "mclk";
-        clocks = <&cru SCLK_I2S_8CH_OUT>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&i2s_8ch_mclk>;
-        pinctrl-1 = <&ear_ctl_h>;
-        #sound-dai-cells = <0>;
-        firefly,hwversion_range_gt = <0 0x00010000>;    // > v1.0
-    };
-
 	XC7022: XC7022@36{
 		status = "disabled";
 		compatible = "firefly,xc7022";
@@ -381,6 +366,19 @@
     status = "okay";
     i2c-scl-rising-time-ns = <300>;
     i2c-scl-falling-time-ns = <15>;
+
+    es8323_new: es8323_new@11 {
+		compatible = "everest,es8323";
+		reg = <0x11>;
+		spk-ctl-gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		clock-names = "mclk";
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
+		#sound-dai-cells = <0>;
+		status = "okay";
+		firefly,hwversion_range_gt = <1 0x00020000>;    // < v2.0
+    };
 
     hym8563: hym8563@51 {
         compatible = "haoyu,hym8563";
@@ -499,8 +497,22 @@
     clock_in_out = "output";
 };
 
+&rt5640_sound{
+	status = "disabled";
+};
+
 &rt5640 {
 	status = "disabled";
+};
+
+&es8323{
+	status = "okay";
+	reg_new = <0x11>;
+        firefly,hwversion_range_lt = <0 0x00020000>;    // < v2.0
+};
+
+&es8323_sound{
+	status = "okay";
 };
 
 &fusb0 {
